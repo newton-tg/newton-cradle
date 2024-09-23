@@ -4,6 +4,8 @@
 
 Core contracts for the Newton DEX protocol.
 
+Router contract currently deployed to testnet at `EQAsxiBVZ5ys4KVMwbOtWDij8cjhflAOoti52oyBnW8mbtk0`
+
 ## Local Development
 The following assumes the use of `node@>=16`.
 
