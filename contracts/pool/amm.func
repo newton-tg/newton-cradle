@@ -33,7 +33,7 @@ int get_pool_d(int reserve_0, int reserve_1, int amp_coeff) inline {
   int d = s;
   int d_prev = d;
   repeat(255) {
-    int p = d * d * d / ( 4 * reserve_0 * reserve_1);
+    int p = (((d * d) / reserve_0) * d) / ( 4 * reserve_1);
     d_prev = d;
     d = ((a * s + 2 * p) * d) / ((a - 1) * d + 3 * p);
 
@@ -58,7 +58,7 @@ int get_pool_d(int reserve_0, int reserve_1, int amp_coeff) inline {
   int a = 2 * amp_coeff;
   int d = get_pool_d(reserve_in,reserve_out,amp_coeff);
   int s = new_reserve_in;
-  int c = d * d * d / (4 * new_reserve_in * a);
+  int c = ((d * d) / ( 2 * new_reserve_in)) * (d / (2 * a));
   int b = s + d / a;
 
   int x = d;
