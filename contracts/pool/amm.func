@@ -1,0 +1,105 @@
+(int, int, int) get_amount_out(int has_ref, int amount_in, int reserve_in, int reserve_out, int amp_coeff) inline {
+  if (amp_coeff > 0) {
+    return get_amount_out_stable(has_ref, amount_in, reserve_in, reserve_out, amp_coeff);
+  }
+  int amount_in_with_fee = amount_in * (FEE_DIVIDER - storage::lp_fee);
+  int base_out = (amount_in_with_fee * reserve_out) / (reserve_in * FEE_DIVIDER + amount_in_with_fee);
+  
+  int protocol_fee_out = 0;
+  int ref_fee_out = 0;
+
+  if (storage::protocol_fee > 0) {
+    protocol_fee_out = divc(base_out * storage::protocol_fee, FEE_DIVIDER);
+  }
+  
+  if (has_ref & (storage::ref_fee > 0)) {
+    ref_fee_out = divc(base_out * storage::ref_fee, FEE_DIVIDER);
+  }
+  
+  base_out -= protocol_fee_out + ref_fee_out;
+  return (base_out, protocol_fee_out, ref_fee_out);
+}
+
+
+int get_pool_d(int reserve_0, int reserve_1, int amp_coeff) inline {
+  ;; don't really know it's 2 and not 4 but that seems to be what everyone else is using
+  int a = 2 * amp_coeff;
+  int s = 0;
+  s = s + reserve_0;
+  s = s + reserve_1;
+
+  ;; newton iteration
+  ;; initial guess is s
+  int d = s;
+  int d_prev = d;
+  repeat(255) {
+    int p = d * d * d / ( 4 * reserve_0 * reserve_1);
+    d_prev = d;
+    d = ((a * s + 2 * p) * d) / ((a - 1) * d + 3 * p);
+
+    if (d > d_prev) {
+      if (d - d_prev <= 1) {
+        return d;
+      }
+    } else {
+      if (d_prev - d <= 1) {
+        return d;
+      }
+    }
+  }
+  throw(777);
+  return 0;
+}
+
+
+(int, int, int) get_amount_out_stable(int has_ref, int amount_in, int reserve_in, int reserve_out, int amp_coeff) inline {
+  int new_reserve_in = reserve_in + amount_in;
+  ;; don't really know it's 2 and not 4 but that seems to be what everyone else is using
+  int a = 2 * amp_coeff;
+  int d = get_pool_d(reserve_in,reserve_out,amp_coeff);
+  int s = new_reserve_in;
+  int c = d * d * d / (4 * new_reserve_in * a);
+  int b = s + d / a;
+
+  int x = d;
+  int x_prev = x;
+  int count = 0;
+  repeat(255) {
+    count += 1;
+    ;; if (count == 2) {
+    ;;   return (x, 0, 0);
+    ;; }
+    x_prev = x;
+    ;; return (s, 0, 0);
+    x = ( x * x + c ) / (2 * x + b - d);
+    if (x > x_prev) {
+      if (x - x_prev <= 1) {
+        ;; return (count, 0, 0);
+        return (reserve_out - x, 0, 0);
+      }
+    } else {
+      if (x_prev - x <= 1) {
+        ;; return (count, 0, 0);
+        return (reserve_out - x, 0, 0);
+      }
+    }
+  }
+  throw(777);
+  ;; fix
+  return (1, 0, 0);
+}
+
+
+() _mint_lp(int query_id, slice to, int amount) impure inline {
+  cell state_init = calculate_jetton_lp_wallet_state_init(to, my_address(), storage::jetton_lp_wallet_code);
+  slice to_wallet_address = calculate_jetton_lp_wallet_address(state_init);
+  var body = begin_cell()
+    .store_uint(internal_transfer, 32)
+    .store_uint(query_id, 64)
+    .store_coins(amount)
+    .store_slice(my_address())
+    .store_slice(to)
+    .store_coins(0) 
+    .store_uint(0, 1);
+  send_message_with_stateinit(0, to_wallet_address, state_init, body.end_cell(), CARRY_REMAINING_GAS);
+}
